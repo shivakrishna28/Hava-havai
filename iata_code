@@ -1,0 +1,48 @@
+import "reflect-metadata";
+import { createConnection } from "typeorm";
+import express from "express";
+import { Airport } from "./entities/Airport";
+import { Flight } from "./entities/Flight";
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+createConnection({
+  type: "postgres",
+  host: "localhost",
+  port: 5432,
+  username: "your-username",
+  password: "your-password",
+  database: "your-database-name",
+  entities: [Airport, Flight],
+  synchronize: true,
+  logging: false,
+})
+  .then(() => {
+    console.log("Database connected and schema synchronized");
+
+    app.get("/api/airport/:iata_code", async (req, res) => {
+      const { iata_code } = req.params;
+
+      try {
+        const airportRepository = getRepository(Airport);
+        const airport = await airportRepository.findOne({
+          where: { iata_code },
+          relations: ["departureFlights", "arrivalFlights"],
+        });
+
+        if (airport) {
+          res.json(airport);
+        } else {
+          res.status(404).json({ message: "Airport not found" });
+        }
+      } catch (error) {
+        res.status(500).json({ message: error.message });
+      }
+    });
+
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((error) => console.log(error));
